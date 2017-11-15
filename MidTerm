@@ -1,0 +1,445 @@
+####    Midterm 2
+
+rm(list=ls())
+
+set.seed(676534095)
+
+#Question 1: Input-Output [Lab 07]
+
+#Creating an empty matrix of intermidiate transactions
+x<-matrix(0,3,3)
+
+#Recording values for Industry X, Y and Z
+x[1,1]<-0
+x[1,2]<-0
+x[1,3]<-70
+x[2,1]<-20
+x[2,2]<-0
+x[2,3]<-80
+x[3,1]<-20
+x[3,2]<-80
+x[3,3]<-0
+
+# Value Added (F)
+F<-matrix(c(40,110,140),nrow=1,ncol=3)
+
+#Regional Imports
+Y<-matrix(c(20,10,10))
+
+#Adding Final Consumers
+Z<-matrix(c(30,100,200,0,30),nrow = 5, ncol = 1)
+
+#Bulding the IO Matrix
+IOM<-matrix(0,6,5)
+
+IOM[1:3,1:3]<-x
+IOM[4,1:3]<-F
+IOM[5,1:3]<-Y
+IOM[1:5,4]<-Z
+IOM[6,]<-colSums(IOM) 
+IOM[,5]<-rowSums(IOM)
+
+colnames(IOM)<-c("IX","IY","IZ","FC","TO")
+rownames(IOM)<-c("IX","IY","IZ","VA","RI","TI")
+
+IOM
+
+#a. Calculate the Technical Coefficients Matrix (A) and explain what it shows
+
+#Technical Coefficients (A)
+A<-matrix(0,3,3)
+A[1,]<-x[1,]/IOM["TI",1:3]
+A[2,]<-x[2,]/IOM["TI",1:3]
+A[3,]<-x[3,]/IOM["TI",1:3]
+
+#The Technical Coefficients Matrix (A) represents the proportion of the production value of an industry that is purchased from another industry. It is the element-by-element division between the inter-industry flows and the Total Inputs.
+
+#Value added technical coefficients (Va)
+Va<-F/IOM["TI",1:3]
+
+#b. Calculate the Leontief Matrix (B) and explain its contents
+
+#Leontief Matrix B = (I-A)^-1
+#Creating the identity matrix
+I<-diag(3)
+B<-solve(I-A)
+B
+
+#c. Calculate the Product, Income and Employment multiplier matrices
+
+#Product Multiplier
+O<-matrix(colSums(B),nrow=1,ncol=3)
+O
+
+#Income Multiplier
+#Sum of each Income Technical Coefficients (Va = VA/TI) times the B matrix
+H<-matrix(0,1,3)
+H[1,1]<-(Va[1,1]*B[1,1])+(Va[1,1]*B[2,1])+(Va[1,1]*B[3,1])
+H[1,2]<-(Va[1,2]*B[1,2])+(Va[1,2]*B[2,2])+(Va[1,2]*B[3,2])
+H[1,3]<-(Va[1,3]*B[1,3])+(Va[1,3]*B[2,3])+(Va[1,3]*B[3,3])
+H
+
+#Employment Multiplier
+#Sum of each Employment Technical Coefficients (w = e/X) times the B matrix
+# Number of workers in each sector
+e<-matrix(c(20,32,40),nrow=1,ncol=3)
+# Employment Tech Coeff (w=E/TI)
+w<-e/IOM["TI",1:3] # $ of output per worker
+# Employment Multiplier
+E<-matrix(0,1,3)
+E[1,1]<-(w[1,1]*B[1,1])+(w[1,1]*B[2,1])+(w[1,1]*B[3,1])
+E[1,2]<-(w[1,2]*B[1,2])+(w[1,2]*B[2,2])+(w[1,2]*B[3,2])
+E[1,3]<-(w[1,3]*B[1,3])+(w[1,2]*B[2,3])+(w[1,2]*B[3,3])
+E
+
+#d. Impact on production, income and employment multiplier from a $AMOUNT increase in the demand of sector X and sector Y
+
+A<-1992 - rnorm(1,1984,2)
+
+#Change in demand of X
+Ystar<-matrix(c(A,0,0),ncol = 1,nrow = 3)
+#1. Economic impact on production
+Prod.Impact <- t(O)*Ystar
+Prod.Impact
+#2. Economic impact on income
+Income.Impact <- t(H)*Ystar
+Income.Impact
+#3. Economic impact on employment
+Emp.Impact <- t(E)*Ystar
+Emp.Impact
+
+#Change in demand of Y
+Ystar1<-matrix(c(0,A,0),ncol = 1,nrow = 3)
+#1. Economic impact on production
+Prod.Impact1 <- t(O)*Ystar1
+Prod.Impact1
+#2. Economic impact on income
+Income.Impact1 <- t(H)*Ystar1
+Income.Impact1
+#3. Economic impact on employment
+Emp.Impact1 <- t(E)*Ystar1
+Emp.Impact1
+
+
+#Question 2: Regional Economic Activity
+
+#------------------------------
+####1. Download and Clean Data
+#------------------------------
+gdpStates<-read.csv("EmploymentWagesbyCounty.csv",header = TRUE,as.is = TRUE)
+View(gdpStates)
+
+# Reducing Data to County Level and Chosing California
+ourState<-c("California")
+ourType<-c("County")
+ourIndustry<-c("Total, all industries","Unclassified")
+ourArea<-c("Unknown Or Undefined, California")
+gdpStates<-gdpStates[gdpStates$St.Name%in%ourState,]
+gdpStates<-gdpStates[gdpStates$Area.Type%in%ourType,]
+gdpStates<-gdpStates[!gdpStates$Industry%in%ourIndustry,]
+gdpStates<-gdpStates[!gdpStates$Area%in%ourArea,]
+
+#Removing useless variables
+uselessVar<- c("Area.Type","Ownership","Qtr","Annual.Average.Status.Code")
+gdpStates<-gdpStates[,!names(gdpStates)%in%uselessVar]
+gdpStates$CountyName<-gsub(" County, California","",gdpStates$Area)
+
+#test<-tapply(gdpStates$Employment_Count,gdpStates$Area,sum)
+#test
+#total industries by state
+ITotal<- aggregate(gdpStates$Employment_Count, by=list(gdpStates$Area), FUN=sum)
+View(ITotal)
+str(ITotal)
+
+#?tapply
+#ITotal2<-tapply(EmployStates$Employment_Count, EmployStates$Area, sum)
+#View(ITotal2)
+
+#getting poligons centroids
+# read map of US states
+install.packages("maptools", dependencies = TRUE)
+library(maptools)
+usmap<-readShapePoly("tl_2014_us_county_06/tl_2014_us_county_06.shp",IDvar="COUNTYFP", CRS("+proj=longlat +datum=WGS84"))
+
+# centroid coordinates
+centroids<-data.frame(coordinates(usmap))
+centroids$COUNTYFP<-usmap@data$COUNTYFP
+names(centroids)[1:2]<-c("lon","lat")
+centroids<-centroids[order(centroids$COUNTYFP),]
+plot(usmap)
+points(centroids,col='red')
+
+#calculating distances between Counties
+install.packages("McSpatial")
+library(McSpatial)
+DistMat<-matrix(0,58,58)
+for(i in 1:58){
+  for(j in 1:58){
+    print(paste("I'm in County ",i,"with County ",j))
+    DistMat[i,j]<-geodistance(centroids[i,"lon"],centroids[i,"lat"],
+                              centroids[j,"lon"],centroids[j,"lat"])$dist
+  }
+}
+colnames(DistMat)<-centroids$COUNTYFP
+rownames(DistMat)<-centroids$COUNTYFP
+
+#a. Market Potential
+#Calculate MP
+for(i in 1:58){
+  ITotal$MP[i]<-sum(as.numeric(ITotal$x[i])/DistMat[i,-i])
+}
+
+ITotal$Group.1
+ITotal$CountyName<-gsub(" County, California","",ITotal$Group.1)
+View(ITotal)
+
+ourNType<-c("Unknown Or Undefined, California")
+ITotal<-ITotal[!ITotal$Group.1%in%ourNType,]
+
+
+#appending MP to the map data
+install.packages('tmap',dependencies = TRUE)
+library(tmap)
+usmap@data$MP <- append_data(usmap, ITotal,key.shp = "NAME", key.data = "CountyName", ignore.na = TRUE)$MP
+
+#plotting a choroplet map
+b1 <- quantile(usmap@data$MP, probs=seq(0,1,0.2),na.rm = FALSE)
+np1 <- findInterval(usmap@data$MP, b1, all.inside=TRUE)
+colors <- sort(heat.colors(5, alpha = 0.8),decreasing = TRUE)
+pdf(file="graphs/MP.pdf",width = 11,height = 8.5)
+plot(usmap,col=colors[np1], main="Market Potential California based on Employment")
+legend("bottomleft", legend=leglabs(round(b1, digits=2)),fill=colors, bty="n", cex=0.8)
+text(centroids[,1:2],ITotal$CountyName,cex = 0.4)
+dev.off()
+
+#b. Primacy Index
+
+NewTable<-gdpStates
+County1<-names(table(gdpStates$CountyName))
+for(i in 1:58){
+  #identify the state
+  whichCounty <- NewTable$CountyName == County1[i]
+  #add state totals
+  totalState <- sum(as.numeric(NewTable$Employment_Count[whichCounty]), na.rm = TRUE)
+  #divide county sum by total state
+  NewTable$PI[whichCounty] <- as.numeric(NewTable$Employment_Count[whichCounty]) / totalState
+  NewTable$sector[whichCounty] <-NewTable$Industry[whichCounty][which.max(NewTable$PI[whichCounty])]
+}
+
+# appending the PI to the map data
+usmap@data$sector <- append_data(usmap,NewTable,key.shp = "NAME",key.data = "CountyName", ignore.duplicates = TRUE)$sector
+#plotting a choroplet map of PIsectorDes
+install.packages("tmap")
+labels <-names(table(NewTable$sector))
+colors <- c('red')
+for(i in 1:length(labels)){
+  whatSector<-usmap@data$sector==labels[i]
+  usmap@data$PIcolor[whatSector]<-colors[i]
+}
+plot(usmap,col=usmap@data$PIcolor, main="Primary Sector California Counties based on Data Given")
+legend("bottomleft", legend=labels,fill=colors, bty="n", cex=0.8)
+text(centroids[,1:2],ITotal$CountyName,cex = 0.6)
+dev.off()
+
+#c. Location Quotient
+
+#calculating the bottom part of the LQ
+Sector<-names(table(NewTable$Industry))
+for(i in 1:length(Sector)){
+  whichSector <- NewTable$Industry == Sector[i]
+  totalSector <- sum(as.numeric(NewTable$Employment_Count[whichSector]), na.rm = TRUE)
+  NewTable$BLQ[whichSector] <- as.numeric(NewTable$Employment_Count[whichSector]) / totalSector
+}
+View(NewTable)
+
+# calculaing the LQ
+NewTable$LQ<-NewTable$PI/NewTable$BLQ
+
+NewIndMan<-NewTable[NewTable$Industry=="Service-providing",]
+View(NewIndMan)
+usmap@data$LQManuf2015 <- append_data(usmap,NewIndMan,key.shp = "NAME", key.data = "CountyName")$LQ
+
+under_coverage()
+b2 <- quantile(usmap@data$LQManuf2015, probs=seq(0,1,0.2),na.rm = TRUE)
+np2 <- findInterval(usmap@data$LQManuf2015, b2, all.inside=TRUE)
+colors <- sort(heat.colors(5, alpha = 0.8),decreasing = T)
+plot(usmap,col=colors[np2], main="Location Quotients Manufacturing in California based on Employment 2014")
+legend("bottomleft", legend=leglabs(round(b2, digits=2)), fill=colors, bty="n", cex=0.8)
+text(centroids[,1:2],ITotal$CountyName,cex = 0.6)
+
+
+#QUESTION 3: SPATIAL DATA ANALYSIS I
+
+#Set up
+install.packages("devtools",dependencies = TRUE)
+library(devtools)
+install_github("estebanlp/GoogleDataSearch")
+library(GoogleDataSearch)
+myapikey<-"AIzaSyDMgZqO6mQ5k_TG0NLO7ouZWcM0p5-_jOQ"
+install.packages("XML")
+install.packages("RCurl")
+#Querying supermarkets in Santa Barbara
+CHmarket<-GooglePlaceSearch(query="supermarkets in Chicago, IL",apikey=myapikey)
+View(CHmarket)
+
+#Plot type 1: Google Maps and store ratings
+CHmarket$store_lat<-as.numeric(CHmarket$store_lat)
+CHmarket$store_lon<-as.numeric(CHmarket$store_lon)
+
+install.packages("ggplot2",dependencies = TRUE)
+install.packages("ggmap",dependencies = TRUE)
+library(ggplot2)
+library(ggmap)
+
+d<-ggplot(CHmarket, aes(x = store_lon, y = store_lat)) 
+dp<-d + geom_point(data=CHmarket, aes(x = store_lon, y = store_lat, size=store_rating,colour=store_type)) 
+dp
+dp<- dp + geom_density2d() + theme(legend.position = "bottom") 
+dp
+
+aa<-get_map(c(lon=-87.6298,lat=41.8781),zoom=13)
+ggmap(aa)
+ggmap(aa) + geom_point(data=CHmarket, aes(x = store_lon, y = store_lat, size=store_rating,colour=store_type))
+
+ggmap(aa) + stat_density2d(aes(x = store_lon, y = store_lat, fill = ..level.., alpha = ..level..), geom = "polygon", data = CHmarket) + scale_fill_gradient(low = "black", high = "red")
+
+distMat<-matrix(0,nrow(CHmarket),nrow(CHmarket))
+rownames(distMat)<-substr(CHmarket$store_name,1,10)
+colnames(distMat)<-substr(CHmarket$store_name,1,10)
+
+install.packages("McSpatial", dependencies = TRUE)
+library(McSpatial)
+
+for(i in 1:nrow(CHmarket)){
+  for(j in 1:nrow(CHmarket)){
+    distMat[i,j]<-geodistance(CHmarket$store_lon[i],CHmarket$store_lat[i],CHmarket$store_lon[j],CHmarket$store_lat[j])$dist
+  }
+}
+
+View(distMat)
+
+install.packages("rgl", dependencies = TRUE)
+library(rgl)
+
+rownames(distMat)
+Wholefoods<-distMat["Whole Food",]
+o<-order(Wholefoods,decreasing = TRUE)
+Wholefoods<-Wholefoods[o]
+barplot(Wholefoods,col="lightblue",horiz=T,cex.names=0.5,las=1)
+
+# cluster dendrograms
+clusterDen<-hclust(dist(distMat))
+plot(clusterDen,horiz=T,hang=-1,cex=0.5)
+rect.hclust(clusterDen, k = 7, border = "red")
+
+#Inverse of the cumulative distance to the competition DO THIS ONE AGAIN
+CHmarket$dist<-1/(colSums(distMat))
+#ggmap(aa) + stat_density2d(data=CHmarket, aes(x = store_lon, y = store_lat, size=dist,colour=store_type))
+ggmap(aa) + stat_density2d(data=CHmarket, aes(x = store_lon, y = store_lat))
+ggmap(aa) + stat_density2d(aes(x = store_lon, y = store_lat, fill = ..level.., alpha = ..level..), geom = "polygon", data = CHmarket) + scale_fill_gradient(low = "black", high = "red")
+
+
+#Question 4: Spatial Data Analaysis II
+
+#QUESTION 4: SPATIAL DATA ANALYSIS II
+Indianfood<-GooglePlaceSearch(query="Indian food in Champaign, IL",apikey="AIzaSyDMgZqO6mQ5k_TG0NLO7ouZWcM0p5-_jOQ")
+Indianfood<-unique(Indianfood)
+View(Indianfood)
+
+Indianfood$store_lat<-as.numeric(Indianfood$store_lat)
+Indianfood$store_lon<-as.numeric(Indianfood$store_lon)
+
+library(maptools)
+proj.cuCT<- "+proj=longlat +datum=WGS84 +no_defs"
+proj.cuBG<-"+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs"
+
+#reading shapefile
+cuBG <- readShapePoly("CU_cityBlockGroups/CU_cityBlockGroups.shp",proj4string = CRS(as.character(proj.cuBG)))
+
+#creating points
+Indianfood.points<-Indianfood
+coordinates(Indianfood.points)<-~store_lon+store_lat
+proj4string(Indianfood.points)<-CRS(as.character(proj.cuBG))
+class(Indianfood.points)
+
+install.packages("dismo", dependencies = TRUE)
+install.packages("rgeos", dependencies = TRUE)
+install.packages("rgl", dependencies = TRUE)
+library(rgl)
+library(dismo)
+library(raster)
+library(rgeos)
+source("voronoi2.R")
+window<-as.numeric(c(attributes(cuBG)$bbox[1,],attributes(cuBG)$bbox[2,]))
+v2<-voronoi2(Indianfood.points, rw = window)
+plot(cuBG)
+plot(Indianfood.points,col='blue',add=T,pch=21,cex=0.5)
+plot(v2,border='red',add=T)
+
+install.packages('acs',dependencies = TRUE)
+library(acs)
+api.key.install(key = "33ec9ead0b98634c1975e69a568d683c2027bff4")
+CH.Tracts<-as.numeric(gsub(pattern = "170190", replacement = "",levels(cuBG$TRACTCE)))
+CH.BGs<- as.numeric(gsub(pattern = "170190", replacement = "",levels(cuBG$BLKGRPCE)))
+#creating a spatial area
+CH.BGs<-geo.make(state = cuBG$STATEFP,county = cuBG$COUNTYFP,tract = cuBG$TRACTCE,block.group = cuBG$BLKGRPCE)
+CH.BGs<-geo.make(state = "IL",county = "Champaign",tract = "*",block.group = "*")
+#fecthing data
+Data1<- acs.fetch(geography = CH.BGs,table.number = "B01002",endyear = 2014,col.names = "pretty")
+Data1
+
+Data1<-data.frame(estimate(Data1))
+CTs<-gsub("Champaign County, Illinois","",row.names(Data1))
+CTs<-gsub("Block Group ","",CTs)
+CTs<-gsub("Census Tract ","",CTs)
+Data1$BGs<-substr(CTs,start = 1,1)
+Data1$CTs<-gsub(", ","",substr(CTs,start = 4,10))
+Data1$CTs<-gsub(",","",Data1$CTs)
+Data1$CTs<-gsub(".","",Data1$CTs,fixed = T)
+Data1$CTs[nchar(Data1$CTs)==5]<-paste0("0",Data1$CTs[nchar(Data1$CTs)==5])
+Data1$CTs[nchar(Data1$CTs)==4]<-paste0("00",Data1$CTs[nchar(Data1$CTs)==4])
+Data1$CTs[Data1$CTs=="110"]<-paste0("0",Data1$CTs[Data1$CTs=="110"],"00")
+Data1$CTs[Data1$CTs=="111"]<-paste0("0",Data1$CTs[Data1$CTs=="111"],"00")
+Data1$CTs[nchar(Data1$CTs)==3]<-paste0("000",Data1$CTs[nchar(Data1$CTs)==3])
+Data1$CTs[nchar(Data1$CTs)==2]<-paste0("00",Data1$CTs[nchar(Data1$CTs)==2],"00")
+Data1$CTs[nchar(Data1$CTs)==1]<-paste0("000",Data1$CTs[nchar(Data1$CTs)==1],'00')
+Data1$GEOID<-paste0("17019",Data1$CTs,Data1$BGs)
+
+library(tmap)
+library(scales)
+
+#Males Median Age
+cuBG2<-append_data(cuBG,Data1,key.shp ="GEOID",key.data = "GEOID")
+b1 <- quantile(cuBG2@data$Median.Age.by.Sex..Median.age....Male, probs=seq(0,1,0.2),na.rm = FALSE)
+np1 <- findInterval(cuBG2@data$Median.Age.by.Sex..Median.age....Male, b1, all.inside=TRUE)
+colors <- sort(heat.colors(5, alpha = 0.8),decreasing = T)
+plot(cuBG2,col=colors[np1], main="Median Age of Males in CU")
+legend("bottomleft", legend=leglabs(round(b1, digits=2)), fill=colors, bty="n", cex=0.8)
+
+v2$pop1<- sp::over(v2,cuBG2,fn = "mean")$Median.Age.by.Sex..Median.age....Male
+v2$pop2<- sp::over(v2,cuBG2,fn = "mean")$Median.Age.by.Sex..Median.age....Female
+
+breaks2<-quantile(v2$pop1,Probs=c(0.05,0.25,0.5 ,0.75,0.95))
+np2<-findInterval(v2$pop1,breaks2,all.inside = TRUE)
+plot(cuBG2)
+plot(v2,add=T,border="red",col=alpha(heat.colors(5)[np2],0.5),wlines="tess",lty=1)
+plot(Indianfood.points,pch=21,bg="blue",add=TRUE,cex=0.5)
+legend("topleft",legend=leglabs(round(breaks2, digits=2)),fill=colors, bty="n", cex=0.8)
+
+#Females Median Age
+cuBG2<-append_data(cuBG,Data1,key.shp ="GEOID",key.data = "GEOID")
+b1 <- quantile(cuBG2@data$Median.Age.by.Sex..Median.age....Female, probs=seq(0,1,0.2),na.rm = FALSE)
+np1 <- findInterval(cuBG2@data$Median.Age.by.Sex..Median.age....Female, b1, all.inside=TRUE)
+colors <- sort(heat.colors(5, alpha = 0.8),decreasing = T)
+plot(cuBG2,col=colors[np1], main="Median Age of Females in CU")
+legend("bottomleft", legend=leglabs(round(b1, digits=2)), fill=colors, bty="n", cex=0.8)
+
+
+breaks3<-quantile(v2$pop2,Probs=c(0.05,0.25,0.5 ,0.75,0.95))
+np3<-findInterval(v2$pop2,breaks3,all.inside = TRUE)
+plot(cuBG2)
+plot(v2,add=T,border="red",col=alpha(heat.colors(5)[np3],0.5),wlines="tess",lty=1)
+plot(Indianfood.points,pch=21,bg="blue",add=TRUE,cex=0.5)
+legend("topleft",legend=leglabs(round(breaks3, digits=2)),fill=colors, bty="n", cex=0.8)
+
+
